@@ -6,10 +6,12 @@ from app.database import create_db_and_tables
 from app.models import Employee
 from app.schemas import EmployeeRead
 from app.task_routes import router as task_router
+from app.timesheet_routes import router as timesheet_router
 
 app = FastAPI(title="Karyam API")
 app.include_router(auth_router)
 app.include_router(task_router)
+app.include_router(timesheet_router)
 
 
 @app.on_event("startup")

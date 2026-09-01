@@ -45,7 +45,6 @@ class TaskCreate(BaseModel):
 
 
 class TaskUpdate(BaseModel):
-    """All fields optional — only send what you want to change."""
     title: Optional[str] = None
     description: Optional[str] = None
     assignee_id: Optional[int] = None
@@ -68,17 +67,30 @@ class TaskRead(BaseModel):
     class Config:
         from_attributes = True
 
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+
+class TimesheetCreate(BaseModel):
+    employee_id: int
+    task_id: Optional[int] = None
+    entry_date: date
+    hours: float
 
 
-class EmployeeRead(BaseModel):
+class TimesheetUpdate(BaseModel):
+    """Used both for correcting hours and for the manager's approve/reject action."""
+    hours: Optional[float] = None
+    approved: Optional[bool] = None
+
+
+class TimesheetRead(BaseModel):
     id: int
-    name: str
-    email: str
-    role: str
-    team: str
+    employee_id: int
+    employee_name: Optional[str] = None
+    task_id: Optional[int] = None
+    task_title: Optional[str] = None
+    entry_date: date
+    hours: float
+    approved: bool
+    created_at: datetime
 
     class Config:
         from_attributes = True
