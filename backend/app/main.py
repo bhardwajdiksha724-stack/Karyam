@@ -1,4 +1,5 @@
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import get_current_employee
 from app.auth_routes import router as auth_router
@@ -9,6 +10,13 @@ from app.task_routes import router as task_router
 from app.timesheet_routes import router as timesheet_router
 
 app = FastAPI(title="Karyam API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(auth_router)
 app.include_router(task_router)
 app.include_router(timesheet_router)
