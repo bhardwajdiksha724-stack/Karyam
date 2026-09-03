@@ -1,8 +1,12 @@
+from dotenv import load_dotenv
+
+load_dotenv()  # must run before any app module reads os.getenv() at import time
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import get_current_employee
 from app.auth_routes import router as auth_router
+from app.chat_routes import router as chat_router
 from app.database import create_db_and_tables
 from app.employee_routes import router as employee_router
 from app.models import Employee
@@ -24,6 +28,7 @@ app.include_router(auth_router)
 app.include_router(task_router)
 app.include_router(timesheet_router)
 app.include_router(employee_router)
+app.include_router(chat_router)
 
 
 @app.on_event("startup")
