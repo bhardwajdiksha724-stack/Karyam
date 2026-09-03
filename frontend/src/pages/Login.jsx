@@ -1,3 +1,4 @@
+import ChatWidget from "../components/ChatWidget";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import client from "../api/client";
@@ -108,8 +109,15 @@ export default function Login() {
               </button>
             </>
           )}
-        </p>
+                </p>
       </div>
+
+      <ChatWidget
+        endpoint="/chat/public"
+        greeting="Hi! I'm the Karyam assistant. Ask me what this app does, or how it can help your team."
+        placeholder="Ask about Karyam…"
+        label="Ask about Karyam"
+      />
     </div>
   );
 }

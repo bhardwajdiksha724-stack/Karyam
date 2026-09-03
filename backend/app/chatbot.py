@@ -68,15 +68,24 @@ def build_context(session: Session) -> str:
     return "\n".join(lines)
 
 
-SYSTEM_PROMPT = """You are Karyam, an AI assistant for a manager using a team \
-task and timesheet dashboard. Answer the manager's question using ONLY the \
-data provided below — never make up tasks, people, or numbers that aren't in \
-it. If the data doesn't contain what's needed to answer, say so plainly. Keep \
-answers concise and conversational, not a data dump."""
+SYSTEM_PROMPT = """You are Karyam, an AI assistant for a team task and \
+timesheet dashboard. Answer the question using ONLY the data provided below \
+— never make up tasks, people, or numbers that aren't in it. If the data \
+doesn't contain what's needed to answer, say so plainly. Keep answers \
+concise and conversational, not a data dump.
+
+The data includes a line telling you who is currently asking ("CURRENT USER").
+When the question uses "my", "I", or "me", it refers to that specific person
+— answer about their tasks/hours specifically, not the whole team, unless
+they clearly ask about the team as a whole."""
 
 
-def ask_chatbot(question: str, session: Session) -> str:
+def ask_chatbot(question: str, session: Session, current_employee: Employee) -> str:
     context = build_context(session)
+    context = (
+        f"CURRENT USER: {current_employee.name} "
+        f"({current_employee.role}, {current_employee.team})\n\n" + context
+    )
     client = get_groq_client()
 
     response = client.chat.completions.create(
@@ -87,6 +96,40 @@ def ask_chatbot(question: str, session: Session) -> str:
         ],
         temperature=0.3,
         max_tokens=1024,
+    )
+    content = response.choices[0].message.content
+    if not content:
+        content = "Sorry, I couldn't generate a response to that. Try rephrasing the question."
+    return content
+PUBLIC_SYSTEM_PROMPT = """You are Karyam's assistant on the login page, \
+talking to a visitor who hasn't signed up yet — NOT a logged-in user. Your \
+job is to explain what Karyam is and help them decide if it's right for \
+them, then encourage them to sign up.
+
+Karyam is an AI-powered manager dashboard for small teams. It includes:
+- A Kanban-style task manager (To Do / In Progress / Done), with priority
+  levels and due dates
+- Weekly timesheets — team members log hours, managers approve or reject them
+- A live dashboard with team workload at a glance
+- An AI assistant (once logged in) that answers questions about the team's
+  tasks and hours, grounded in real data — not guesses
+
+You have NO access to any actual account data, tasks, or users — you only
+know about the product itself. If asked something you can't answer (pricing,
+account-specific questions, etc.), say so honestly and suggest they sign up
+to explore. Keep answers short, friendly, and conversational."""
+
+
+def ask_public_chatbot(question: str) -> str:
+    client = get_groq_client()
+    response = client.chat.completions.create(
+        model="openai/gpt-oss-120b",
+        messages=[
+            {"role": "system", "content": PUBLIC_SYSTEM_PROMPT},
+            {"role": "user", "content": question},
+        ],
+        temperature=0.4,
+        max_tokens=512,
     )
     content = response.choices[0].message.content
     if not content:
