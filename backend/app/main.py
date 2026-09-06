@@ -14,11 +14,17 @@ from app.schemas import EmployeeRead
 from app.task_routes import router as task_router
 from app.timesheet_routes import router as timesheet_router
 
+import os
+
 app = FastAPI(title="Karyam API")
+
+# Comma-separated list of allowed frontend origins. Defaults to local dev.
+# In production, set ALLOWED_ORIGINS to your real deployed frontend URL(s).
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
