@@ -10,6 +10,13 @@ class EmployeeStatus(str, Enum):
     on_leave = "on_leave"
 
 
+class AccessRole(str, Enum):
+    """Controls what a logged-in account is actually allowed to do —
+    separate from `role`, which is just a job title like 'Designer'."""
+    manager = "manager"
+    employee = "employee"
+
+
 class TaskPriority(str, Enum):
     low = "low"
     medium = "medium"
@@ -27,7 +34,8 @@ class Employee(SQLModel, table=True):
     name: str
     email: str = Field(unique=True, index=True)
     hashed_password: str
-    role: str  # e.g. "Manager", "Developer", "Designer"
+    role: str  # job title, e.g. "Manager", "Developer", "Designer" — display only
+    access_role: AccessRole = AccessRole.employee  # what they're actually PERMITTED to do
     team: str
     status: EmployeeStatus = EmployeeStatus.active
     created_at: datetime = Field(default_factory=datetime.utcnow)

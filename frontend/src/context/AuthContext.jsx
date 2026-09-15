@@ -7,8 +7,6 @@ export function AuthProvider({ children }) {
   const [employee, setEmployee] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // On first load, if we already have a saved token, try to fetch the
-  // logged-in employee so a page refresh doesn't kick you back to login.
   useEffect(() => {
     const token = localStorage.getItem("karyam_token");
     if (!token) {
@@ -34,8 +32,10 @@ export function AuthProvider({ children }) {
     setEmployee(null);
   }
 
+  const isManager = employee?.access_role === "manager";
+
   return (
-    <AuthContext.Provider value={{ employee, loading, login, logout }}>
+    <AuthContext.Provider value={{ employee, loading, login, logout, isManager }}>
       {children}
     </AuthContext.Provider>
   );

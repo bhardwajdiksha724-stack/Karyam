@@ -6,15 +6,13 @@ from sqlmodel import Session, select
 
 from app.auth import get_current_employee
 from app.database import get_session
-from app.models import Employee, Task, TimesheetEntry
+from app.models import AccessRole, Employee, Task, TimesheetEntry
 from app.schemas import TimesheetCreate, TimesheetRead, TimesheetUpdate
 
 router = APIRouter(prefix="/timesheets", tags=["timesheets"])
 
 
 def _to_timesheet_read(entry: TimesheetEntry, session: Session) -> TimesheetRead:
-    """Attaches employee name and task title so the frontend doesn't have to
-    look them up separately for every row in a weekly view."""
     employee = session.get(Employee, entry.employee_id)
     task = session.get(Task, entry.task_id) if entry.task_id else None
     return TimesheetRead(
@@ -36,8 +34,11 @@ def create_entry(
     session: Session = Depends(get_session),
     current_employee: Employee = Depends(get_current_employee),
 ):
-    """Any logged-in manager can log an entry for themselves or any employee —
-    matches the MVP call to let the manager play both roles for the demo."""
+    """Managers can log an entry for anyone. Regular employees can only log
+    entries for themselves."""
+    if current_employee.access_role != AccessRole.manager and data.employee_id != current_employee.id:
+        raise HTTPException(status_code=403, detail="You can only log timesheet entries for yourself")
+
     entry = TimesheetEntry(**data.dict())
     session.add(entry)
     session.commit()
@@ -54,8 +55,6 @@ def list_entries(
     session: Session = Depends(get_session),
     current_employee: Employee = Depends(get_current_employee),
 ):
-    """Filters for a weekly view, e.g.
-    GET /timesheets?employee_id=1&start_date=2026-09-01&end_date=2026-09-07"""
     query = select(TimesheetEntry)
     if employee_id:
         query = query.where(TimesheetEntry.employee_id == employee_id)
@@ -76,13 +75,22 @@ def update_entry(
     session: Session = Depends(get_session),
     current_employee: Employee = Depends(get_current_employee),
 ):
-    """Used both to correct logged hours and for the manager's approve/reject
-    action, e.g. PATCH {"approved": true}"""
+    """Approving/rejecting a timesheet requires manager access. A regular
+    employee may only correct the `hours` on their OWN entry — they can
+    never approve their own (or anyone's) timesheet."""
     entry = session.get(TimesheetEntry, entry_id)
     if not entry:
         raise HTTPException(status_code=404, detail="Timesheet entry not found")
 
     update_data = data.dict(exclude_unset=True)
+    is_manager = current_employee.access_role == AccessRole.manager
+
+    if "approved" in update_data and not is_manager:
+        raise HTTPException(status_code=403, detail="Only a manager can approve or reject timesheets")
+
+    if not is_manager and entry.employee_id != current_employee.id:
+        raise HTTPException(status_code=403, detail="You can only edit your own timesheet entries")
+
     for key, value in update_data.items():
         setattr(entry, key, value)
 
@@ -98,9 +106,14 @@ def delete_entry(
     session: Session = Depends(get_session),
     current_employee: Employee = Depends(get_current_employee),
 ):
+    """Managers can delete any entry. Employees can only delete their own."""
     entry = session.get(TimesheetEntry, entry_id)
     if not entry:
         raise HTTPException(status_code=404, detail="Timesheet entry not found")
+
+    if current_employee.access_role != AccessRole.manager and entry.employee_id != current_employee.id:
+        raise HTTPException(status_code=403, detail="You can only delete your own timesheet entries")
+
     session.delete(entry)
     session.commit()
     return {"detail": "Timesheet entry deleted"}

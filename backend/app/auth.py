@@ -58,3 +58,12 @@ def get_current_employee(
     if employee is None:
         raise HTTPException(status_code=401, detail="Employee not found")
     return employee
+
+def require_manager(current_employee=Depends(get_current_employee)):
+    """FastAPI dependency: raises 403 unless the logged-in account has
+    manager-level access. Use this on routes only managers should reach."""
+    from app.models import AccessRole
+
+    if current_employee.access_role != AccessRole.manager:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    return current_employee

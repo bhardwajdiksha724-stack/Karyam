@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import client from "../api/client";
 import TaskCard from "../components/TaskCard";
 import NewTaskForm from "../components/NewTaskForm";
+import { useAuth } from "../context/AuthContext";
 
 const columns = [
   { key: "todo", label: "To Do", dot: "bg-status-todo" },
@@ -10,6 +11,7 @@ const columns = [
 ];
 
 export default function TasksPage() {
+  const { isManager, employee } = useAuth();
   const [tasks, setTasks] = useState([]);
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,8 +38,6 @@ export default function TasksPage() {
   }
 
   async function handleStatusChange(taskId, status) {
-    // Update locally right away so the card jumps columns instantly,
-    // then confirm with the backend.
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
     await client.patch(`/tasks/${taskId}`, { status });
   }
@@ -55,20 +55,24 @@ export default function TasksPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h2 className="font-display text-2xl font-bold text-text">Tasks</h2>
-        <button
-          onClick={() => setShowForm((v) => !v)}
-          className="bg-accent text-white text-sm rounded-md px-4 py-2 font-medium hover:opacity-90 transition-opacity"
-        >
-          {showForm ? "Close" : "+ New task"}
-        </button>
+        {isManager && (
+          <button
+            onClick={() => setShowForm((v) => !v)}
+            className="bg-accent text-white text-sm rounded-md px-4 py-2 font-medium hover:opacity-90 transition-opacity"
+          >
+            {showForm ? "Close" : "+ New task"}
+          </button>
+        )}
       </div>
 
-      {showForm && (
-        <NewTaskForm
-          employees={employees}
-          onCreate={handleCreate}
-          onCancel={() => setShowForm(false)}
-        />
+      {!isManager && (
+        <p className="text-xs text-text-muted mb-4">
+          You can update the status of tasks assigned to you. Creating, reassigning, and deleting tasks requires manager access.
+        </p>
+      )}
+
+      {showForm && isManager && (
+        <NewTaskForm employees={employees} onCreate={handleCreate} onCancel={() => setShowForm(false)} />
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -92,6 +96,8 @@ export default function TasksPage() {
                       task={task}
                       onStatusChange={handleStatusChange}
                       onDelete={handleDelete}
+                      isManager={isManager}
+                      currentEmployeeId={employee?.id}
                     />
                   ))
                 )}

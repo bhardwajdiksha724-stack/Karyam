@@ -21,6 +21,7 @@ def signup(data: SignupRequest, session: Session = Depends(get_session)):
         hashed_password=hash_password(data.password),
         role=data.role,
         team=data.team,
+        access_role=data.access_role,
     )
     session.add(employee)
     session.commit()

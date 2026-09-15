@@ -3,7 +3,7 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr
 
-from app.models import TaskPriority, TaskStatus
+from app.models import AccessRole, TaskPriority, TaskStatus
 
 
 class SignupRequest(BaseModel):
@@ -12,6 +12,7 @@ class SignupRequest(BaseModel):
     password: str
     role: str = "Manager"
     team: str = "General"
+    access_role: AccessRole = AccessRole.employee
 
 
 class LoginRequest(BaseModel):
@@ -30,6 +31,7 @@ class EmployeeRead(BaseModel):
     email: str
     role: str
     team: str
+    access_role: AccessRole
 
     class Config:
         from_attributes = True
@@ -76,7 +78,6 @@ class TimesheetCreate(BaseModel):
 
 
 class TimesheetUpdate(BaseModel):
-    """Used both for correcting hours and for the manager's approve/reject action."""
     hours: Optional[float] = None
     approved: Optional[bool] = None
 

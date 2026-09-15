@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import client from "../api/client";
 import NewTimesheetForm from "../components/NewTimesheetForm";
+import { useAuth } from "../context/AuthContext";
 
 function toISO(date) {
   return date.toISOString().slice(0, 10);
@@ -8,7 +9,7 @@ function toISO(date) {
 
 function mondayOf(date) {
   const d = new Date(date);
-  const day = d.getDay(); // 0 = Sunday, 1 = Monday, ...
+  const day = d.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   d.setDate(d.getDate() + diff);
   return d;
@@ -20,6 +21,7 @@ function formatRange(monday, sunday) {
 }
 
 export default function TimesheetsPage() {
+  const { isManager, employee } = useAuth();
   const [weekStart, setWeekStart] = useState(() => mondayOf(new Date()));
   const [entries, setEntries] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -37,9 +39,7 @@ export default function TimesheetsPage() {
   function loadData() {
     setLoading(true);
     return Promise.all([
-      client.get("/timesheets", {
-        params: { start_date: toISO(weekStart), end_date: toISO(weekEnd) },
-      }),
+      client.get("/timesheets", { params: { start_date: toISO(weekStart), end_date: toISO(weekEnd) } }),
       client.get("/employees"),
       client.get("/tasks"),
     ])
@@ -58,9 +58,8 @@ export default function TimesheetsPage() {
   }
 
   async function handleToggleApprove(entry) {
-    setEntries((prev) =>
-      prev.map((e) => (e.id === entry.id ? { ...e, approved: !e.approved } : e))
-    );
+    if (!isManager) return;
+    setEntries((prev) => prev.map((e) => (e.id === entry.id ? { ...e, approved: !e.approved } : e)));
     await client.patch(`/timesheets/${entry.id}`, { approved: !entry.approved });
   }
 
@@ -93,30 +92,28 @@ export default function TimesheetsPage() {
         </button>
       </div>
 
+      {!isManager && (
+        <p className="text-xs text-text-muted mb-4">
+          You can log and edit your own hours. Approving timesheets requires manager access.
+        </p>
+      )}
+
       {showForm && (
         <NewTimesheetForm
           employees={employees}
           tasks={tasks}
           onCreate={handleCreate}
           onCancel={() => setShowForm(false)}
+          isManager={isManager}
+          currentEmployee={employee}
         />
       )}
 
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => shiftWeek(-7)}
-            className="text-sm text-text-muted hover:text-text border border-border rounded-md px-3 py-1.5"
-          >
-            ← Prev
-          </button>
+          <button onClick={() => shiftWeek(-7)} className="text-sm text-text-muted hover:text-text border border-border rounded-md px-3 py-1.5">← Prev</button>
           <span className="text-sm text-text">{formatRange(weekStart, weekEnd)}</span>
-          <button
-            onClick={() => shiftWeek(7)}
-            className="text-sm text-text-muted hover:text-text border border-border rounded-md px-3 py-1.5"
-          >
-            Next →
-          </button>
+          <button onClick={() => shiftWeek(7)} className="text-sm text-text-muted hover:text-text border border-border rounded-md px-3 py-1.5">Next →</button>
         </div>
         <span className="text-sm text-text-muted">Total: {totalHours} hrs</span>
       </div>
@@ -137,34 +134,34 @@ export default function TimesheetsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {entries.map((entry) => (
-                <tr key={entry.id}>
-                  <td className="px-5 py-3 text-text">{entry.entry_date}</td>
-                  <td className="px-5 py-3 text-text">{entry.employee_name}</td>
-                  <td className="px-5 py-3 text-text-muted">{entry.task_title || "—"}</td>
-                  <td className="px-5 py-3 text-text">{entry.hours}</td>
-                  <td className="px-5 py-3">
-                    <button
-                      onClick={() => handleToggleApprove(entry)}
-                      className={`text-xs px-2 py-1 rounded-full border ${
-                        entry.approved
-                          ? "text-status-done border-status-done/40"
-                          : "text-text-muted border-border"
-                      }`}
-                    >
-                      {entry.approved ? "Approved" : "Pending"}
-                    </button>
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <button
-                      onClick={() => handleDelete(entry.id)}
-                      className="text-xs text-text-muted hover:text-status-high"
-                    >
-                      ✕
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {entries.map((entry) => {
+                const canDelete = isManager || entry.employee_id === employee?.id;
+                return (
+                  <tr key={entry.id}>
+                    <td className="px-5 py-3 text-text">{entry.entry_date}</td>
+                    <td className="px-5 py-3 text-text">{entry.employee_name}</td>
+                    <td className="px-5 py-3 text-text-muted">{entry.task_title || "—"}</td>
+                    <td className="px-5 py-3 text-text">{entry.hours}</td>
+                    <td className="px-5 py-3">
+                      <button
+                        onClick={() => handleToggleApprove(entry)}
+                        disabled={!isManager}
+                        title={isManager ? "" : "Only a manager can approve timesheets"}
+                        className={`text-xs px-2 py-1 rounded-full border ${
+                          entry.approved ? "text-status-done border-status-done/40" : "text-text-muted border-border"
+                        } ${isManager ? "" : "cursor-default"}`}
+                      >
+                        {entry.approved ? "Approved" : "Pending"}
+                      </button>
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      {canDelete && (
+                        <button onClick={() => handleDelete(entry.id)} className="text-xs text-text-muted hover:text-status-high">✕</button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
