@@ -14,6 +14,7 @@ export default {
           muted: "#8B92A6",    // secondary text
         },
         accent: "#4F8CFF",     // primary actions, links, focus rings
+        accent2: "#B14FFF",
         status: {
           todo: "#8B92A6",
           progress: "#F5A623",

@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import client from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import ChatWidget from "../components/ChatWidget";
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export default function Login() {
   const [mode, setMode] = useState("login");
@@ -13,8 +15,35 @@ export default function Login() {
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const googleButtonRef = useRef(null);
+
+  async function handleGoogleCredential(response) {
+    setError("");
+    try {
+      await loginWithGoogle(response.credential);
+      navigate("/");
+    } catch (err) {
+      const detail = err?.response?.data?.detail;
+      setError(typeof detail === "string" ? detail : "Google sign-in failed. Try again.");
+    }
+  }
+
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID || !window.google || !googleButtonRef.current) return;
+
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleCredential,
+    });
+    window.google.accounts.id.renderButton(googleButtonRef.current, {
+      theme: "filled_black",
+      shape: "pill",
+      size: "large",
+      width: 320,
+    });
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -43,6 +72,17 @@ export default function Login() {
             {mode === "login" ? "Sign in to your dashboard" : "Create your account"}
           </p>
         </div>
+
+        {GOOGLE_CLIENT_ID && (
+          <div className="mb-4 flex flex-col items-center gap-3">
+            <div ref={googleButtonRef} />
+            <div className="w-full flex items-center gap-3">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-text-muted">or</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-lg p-6 space-y-4">
           {mode === "signup" && (
@@ -120,9 +160,9 @@ export default function Login() {
 
       <ChatWidget
         endpoint="/chat/public"
-        greeting="Hi! I'm the Karyam assistant. Ask me what this app does, or how it can help your team."
-        placeholder="Ask about Karyam…"
-        label="Ask about Karyam"
+        greeting="heyy 👋 I'm Kai! Ask me what Karyam does, how it works, or what it costs — no sign up needed."
+        placeholder="Ask Kai about Karyam…"
+        label="Kai"
       />
     </div>
   );

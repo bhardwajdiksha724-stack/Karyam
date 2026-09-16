@@ -5,6 +5,7 @@ from groq import Groq
 from sqlmodel import Session, select
 
 from app.models import Employee, Task, TimesheetEntry
+from app.rag import retrieve_relevant_chunks
 
 _groq_client = None
 
@@ -68,7 +69,7 @@ def build_context(session: Session) -> str:
     return "\n".join(lines)
 
 
-SYSTEM_PROMPT = """You are Karyam, an AI assistant for a team task and \
+SYSTEM_PROMPT = """You are Kai, Karyam's AI assistant for a team task and \
 timesheet dashboard. Answer the question using ONLY the data provided below \
 — never make up tasks, people, or numbers that aren't in it. If the data \
 doesn't contain what's needed to answer, say so plainly. Keep answers \
@@ -101,32 +102,31 @@ def ask_chatbot(question: str, session: Session, current_employee: Employee) -> 
     if not content:
         content = "Sorry, I couldn't generate a response to that. Try rephrasing the question."
     return content
-PUBLIC_SYSTEM_PROMPT = """You are Karyam's assistant on the login page, \
-talking to a visitor who hasn't signed up yet — NOT a logged-in user. Your \
-job is to explain what Karyam is and help them decide if it's right for \
-them, then encourage them to sign up.
+PUBLIC_SYSTEM_PROMPT = PUBLIC_SYSTEM_PROMPT = """You are Kai, Karyam's assistant on the login page, \
+talking to a visitor who hasn't signed up yet — NOT a logged-in user.
 
-Karyam is an AI-powered manager dashboard for small teams. It includes:
-- A Kanban-style task manager (To Do / In Progress / Done), with priority
-  levels and due dates
-- Weekly timesheets — team members log hours, managers approve or reject them
-- A live dashboard with team workload at a glance
-- An AI assistant (once logged in) that answers questions about the team's
-  tasks and hours, grounded in real data — not guesses
+Answer using ONLY the documentation excerpts provided below — these were \
+retrieved specifically because they're relevant to the question. If the \
+excerpts don't contain what's needed to answer, say so honestly rather than \
+guessing, and suggest the visitor sign up to explore further.
 
-You have NO access to any actual account data, tasks, or users — you only
-know about the product itself. If asked something you can't answer (pricing,
-account-specific questions, etc.), say so honestly and suggest they sign up
-to explore. Keep answers short, friendly, and conversational."""
-
+You have NO access to any actual account data, tasks, or users — only the \
+product documentation. Keep answers short, friendly, and conversational."""
 
 def ask_public_chatbot(question: str) -> str:
+    relevant_chunks = retrieve_relevant_chunks(question, top_k=2)
+
+    if relevant_chunks:
+        docs_text = "\n\n---\n\n".join(c["text"] for c in relevant_chunks)
+    else:
+        docs_text = "(No matching documentation found for this question.)"
+
     client = get_groq_client()
     response = client.chat.completions.create(
         model="openai/gpt-oss-120b",
         messages=[
             {"role": "system", "content": PUBLIC_SYSTEM_PROMPT},
-            {"role": "user", "content": question},
+            {"role": "user", "content": f"RETRIEVED DOCUMENTATION:\n{docs_text}\n\nQUESTION: {question}"},
         ],
         temperature=0.4,
         max_tokens=512,

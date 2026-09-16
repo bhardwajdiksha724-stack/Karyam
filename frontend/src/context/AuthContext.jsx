@@ -27,6 +27,13 @@ export function AuthProvider({ children }) {
     setEmployee(me.data);
   }
 
+  async function loginWithGoogle(credential) {
+    const res = await client.post("/auth/google", { credential });
+    localStorage.setItem("karyam_token", res.data.access_token);
+    const me = await client.get("/auth/me");
+    setEmployee(me.data);
+  }
+
   function logout() {
     localStorage.removeItem("karyam_token");
     setEmployee(null);
@@ -35,7 +42,7 @@ export function AuthProvider({ children }) {
   const isManager = employee?.access_role === "manager";
 
   return (
-    <AuthContext.Provider value={{ employee, loading, login, logout, isManager }}>
+    <AuthContext.Provider value={{ employee, loading, login, loginWithGoogle, logout, isManager }}>
       {children}
     </AuthContext.Provider>
   );

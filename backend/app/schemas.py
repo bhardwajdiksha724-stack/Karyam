@@ -95,3 +95,6 @@ class TimesheetRead(BaseModel):
 
     class Config:
         from_attributes = True
+
+class GoogleAuthRequest(BaseModel):
+    credential: str  # the ID token Google's Sign-In button returns
