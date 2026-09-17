@@ -39,10 +39,15 @@ export function AuthProvider({ children }) {
     setEmployee(null);
   }
 
+  async function refreshEmployee() {
+    const me = await client.get("/auth/me");
+    setEmployee(me.data);
+  }
+
   const isManager = employee?.access_role === "manager";
 
   return (
-    <AuthContext.Provider value={{ employee, loading, login, loginWithGoogle, logout, isManager }}>
+    <AuthContext.Provider value={{ employee, loading, login, loginWithGoogle, logout, refreshEmployee, isManager }}>
       {children}
     </AuthContext.Provider>
   );

@@ -98,3 +98,15 @@ class TimesheetRead(BaseModel):
 
 class GoogleAuthRequest(BaseModel):
     credential: str  # the ID token Google's Sign-In button returns
+
+class ProfileUpdate(BaseModel):
+    """Fields a user can edit about themselves. Deliberately excludes
+    email and access_role — those aren't self-service."""
+    name: Optional[str] = None
+    role: Optional[str] = None  # job title, e.g. "Designer"
+    team: Optional[str] = None
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str
+    new_password: str

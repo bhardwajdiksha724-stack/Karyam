@@ -5,6 +5,7 @@ const navItems = [
   { to: "/", label: "Dashboard", end: true },
   { to: "/tasks", label: "Tasks" },
   { to: "/timesheets", label: "Timesheets" },
+  { to: "/account", label: "Account" },
 ];
 
 export default function Sidebar() {
