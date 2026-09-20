@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { Inbox } from "lucide-react";
 import client from "../api/client";
 import TaskCard from "../components/TaskCard";
 import NewTaskForm from "../components/NewTaskForm";
 import { useAuth } from "../context/AuthContext";
+import { celebrate } from "../utils/celebrate";
 
 const columns = [
   { key: "todo", label: "To Do", dot: "bg-status-todo" },
@@ -40,6 +42,7 @@ export default function TasksPage() {
   async function handleStatusChange(taskId, status) {
     setTasks((prev) => prev.map((t) => (t.id === taskId ? { ...t, status } : t)));
     await client.patch(`/tasks/${taskId}`, { status });
+    if (status === "done") celebrate();
   }
 
   async function handleDelete(taskId) {
@@ -58,7 +61,7 @@ export default function TasksPage() {
         {isManager && (
           <button
             onClick={() => setShowForm((v) => !v)}
-            className="bg-accent text-white text-sm rounded-md px-4 py-2 font-medium hover:opacity-90 transition-opacity"
+            className="bg-accent text-white text-sm rounded-md px-4 py-2 font-medium hover:opacity-90 active:scale-95 transition-all"
           >
             {showForm ? "Close" : "+ New task"}
           </button>
@@ -88,7 +91,10 @@ export default function TasksPage() {
 
               <div className="space-y-3">
                 {colTasks.length === 0 ? (
-                  <p className="text-xs text-text-muted">No tasks here.</p>
+                  <div className="flex flex-col items-center gap-1.5 py-6 text-text-muted border border-dashed border-border rounded-lg">
+                    <Inbox size={20} />
+                    <p className="text-xs">No tasks here.</p>
+                  </div>
                 ) : (
                   colTasks.map((task) => (
                     <TaskCard

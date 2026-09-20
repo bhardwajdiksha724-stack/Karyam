@@ -1,6 +1,7 @@
 import { useState } from "react";
 import client from "../api/client";
 import { useAuth } from "../context/AuthContext";
+import PasswordInput from "../components/PasswordInput";
 
 export default function AccountPage() {
   const { employee, isManager, refreshEmployee } = useAuth();
@@ -112,24 +113,15 @@ export default function AccountPage() {
         <form onSubmit={handlePasswordSubmit} className="space-y-3">
           <div>
             <label className="block text-sm text-text-muted mb-1">Current password</label>
-            <input
-              type="password" required value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
-              className="w-full bg-base border border-border rounded-md px-3 py-2 text-text text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-            />
+            <PasswordInput required value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} className="text-sm" />
           </div>
           <div>
             <label className="block text-sm text-text-muted mb-1">New password</label>
-            <input
-              type="password" required minLength={6} value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full bg-base border border-border rounded-md px-3 py-2 text-text text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-            />
+            <PasswordInput required minLength={6} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className="text-sm" />
           </div>
           <div>
             <label className="block text-sm text-text-muted mb-1">Confirm new password</label>
-            <input
-              type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full bg-base border border-border rounded-md px-3 py-2 text-text text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-            />
+            <PasswordInput required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} className="text-sm" />
           </div>
           {passwordError && <p className="text-sm text-status-high">{passwordError}</p>}
           {passwordMessage && <p className="text-sm text-status-done">{passwordMessage}</p>}
