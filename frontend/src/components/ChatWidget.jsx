@@ -1,32 +1,89 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Zap } from "lucide-react";
 import client from "../api/client";
+import { celebrate } from "../utils/celebrate";
+
+const STATUS_TEXT = {
+  confirming: "Working on it…",
+  confirmed: "✓ Confirmed",
+  cancelled: "Cancelled",
+  failed: "Didn't go through",
+};
 
 export default function ChatWidget({
   endpoint = "/chat",
-  greeting = "heyy 👋 I'm Kai — ask me anything about your tasks, workload, or hours!",
-  placeholder = "Ask Kai anything…",
+  greeting = "heyy 👋 I'm Kai — ask me about your team, or tell me what to do, like \"create a task for Priya to fix the login bug\".",
+  placeholder = "Ask Kai or tell it what to do…",
   label = "Kai",
+  onDataChanged,
 }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([{ role: "assistant", content: greeting }]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
 
+  function addMessage(message) {
+    setMessages((prev) => [...prev, message]);
+  }
+
+  function setActionStatus(index, status) {
+    setMessages((prev) =>
+      prev.map((m, i) => (i === index ? { ...m, action: { ...m.action, status } } : m))
+    );
+  }
+
   async function handleSend(e) {
     e.preventDefault();
     if (!input.trim() || sending) return;
     const question = input.trim();
-    setMessages((prev) => [...prev, { role: "user", content: question }]);
+    addMessage({ role: "user", content: question });
     setInput("");
     setSending(true);
     try {
       const res = await client.post(endpoint, { message: question });
-      setMessages((prev) => [...prev, { role: "assistant", content: res.data.reply }]);
+      const { reply, action_token, action_summaries } = res.data;
+      addMessage({
+        role: "assistant",
+        content: reply,
+        action: action_token
+          ? { token: action_token, summaries: action_summaries || [], status: "pending" }
+          : undefined,
+      });
     } catch (err) {
       const detail = err?.response?.data?.detail || "Something went wrong. Try again.";
-      setMessages((prev) => [...prev, { role: "assistant", content: detail }]);
+      addMessage({ role: "assistant", content: detail });
+    } finally {
+      setSending(false);
+    }
+  }
+
+  // Kai proposed an action; the user pressed Confirm or Cancel.
+  async function handleAction(index, approve) {
+    const action = messages[index]?.action;
+    if (!action || action.status !== "pending" || sending) return;
+
+    if (!approve) {
+      setActionStatus(index, "cancelled");
+      addMessage({ role: "assistant", content: "No problem, I've cancelled that." });
+      return;
+    }
+
+    setActionStatus(index, "confirming");
+    setSending(true);
+    try {
+      const res = await client.post("/chat/confirm", { action_token: action.token });
+      setActionStatus(index, "confirmed");
+      addMessage({ role: "assistant", content: res.data.reply });
+      if (res.data.celebrate) celebrate();
+      if (onDataChanged) onDataChanged();
+    } catch (err) {
+      setActionStatus(index, "failed");
+      addMessage({
+        role: "assistant",
+        content: err?.response?.data?.detail || "Something went wrong. Try again.",
+      });
     } finally {
       setSending(false);
     }
@@ -52,6 +109,7 @@ export default function ChatWidget({
         </span>
         <button onClick={() => setOpen(false)} className="text-text-muted hover:text-text text-sm">✕</button>
       </div>
+
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {messages.map((m, i) =>
           m.role === "user" ? (
@@ -70,6 +128,37 @@ export default function ChatWidget({
               >
                 {m.content}
               </ReactMarkdown>
+
+              {m.action && (
+                <div className="not-prose mt-3 rounded-md border border-accent2/40 bg-accent2/5 p-2.5 space-y-2">
+                  {m.action.summaries.map((summary, j) => (
+                    <div key={j} className="flex items-start gap-2 text-xs text-text">
+                      <Zap size={12} className="text-accent2 mt-0.5 shrink-0" />
+                      <span>{summary}</span>
+                    </div>
+                  ))}
+                  {m.action.status === "pending" ? (
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => handleAction(i, true)}
+                        disabled={sending}
+                        className="flex-1 bg-gradient-to-br from-accent to-accent2 text-white text-xs rounded-md py-1.5 font-medium hover:opacity-90 active:scale-95 disabled:opacity-50 transition-all"
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        onClick={() => handleAction(i, false)}
+                        disabled={sending}
+                        className="flex-1 border border-border text-text-muted hover:text-text text-xs rounded-md py-1.5 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-text-muted">{STATUS_TEXT[m.action.status]}</p>
+                  )}
+                </div>
+              )}
             </div>
           )
         )}
@@ -79,6 +168,7 @@ export default function ChatWidget({
           </div>
         )}
       </div>
+
       <form onSubmit={handleSend} className="border-t border-border p-3 flex gap-2">
         <input type="text" value={input} onChange={(e) => setInput(e.target.value)} placeholder={placeholder}
           className="flex-1 bg-base border border-border rounded-md px-3 py-2 text-text text-sm focus:outline-none focus:ring-2 focus:ring-accent" />
